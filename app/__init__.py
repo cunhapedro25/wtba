@@ -16,15 +16,13 @@ def create_app():
 
     # Create necessary directories
     uploads_dir = project_dir / 'uploads'
-    downloads_dir = project_dir / 'downloads'
     uploads_dir.mkdir(exist_ok=True)
-    downloads_dir.mkdir(exist_ok=True)
 
     # Change to project directory
     os.chdir(project_dir)
 
     # Register routes
-    from app.main import main_bp
-    app.register_blueprint(main_bp)
+    from app.main import main
+    app.register_blueprint(main)
 
     return app

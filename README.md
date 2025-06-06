@@ -13,8 +13,7 @@ wtba/
 │   ├── utils.py
 │   └── templates/
 │       └── index.html
-├── static/
-│   └── css/
+│   └──  static/
 │       └── style.css
 ├── models/
 │   └── best.pt

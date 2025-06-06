@@ -4,3 +4,6 @@
 runs/
 downloads/
 uploads/
+wildlife_dataset/
+
+.env

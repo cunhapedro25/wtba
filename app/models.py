@@ -8,8 +8,8 @@ from ultralytics import YOLO
 class DetectionModel:
     def __init__(self):
         self.model = None
-        self.class_names = ['hog', 'rabbit', 'pigeon']
-        self.colors = [(255, 0, 0), (0, 255, 0), (0, 0, 255)]
+        self.class_names = ['hog', 'rabbit', 'pigeon', 'deer', 'squirrel']
+        self.colors = [(255, 0, 0), (0, 255, 0), (0, 0, 255), (128, 128, 0), (0, 128, 128)]
         self.model_path = None
         self._setup_model_path()
 
@@ -36,11 +36,11 @@ class DetectionModel:
         """Check if model is loaded"""
         return self.model is not None
 
-    def predict(self, image_path, conf_threshold=0.5):
+    def predict(self, *args, **kwargs):
         """Run prediction on image"""
         if not self.is_loaded():
             raise Exception("Model not loaded")
-        return self.model(image_path, conf=conf_threshold)
+        return self.model(*args, **kwargs)
 
     def predict_silent(self, image, conf_threshold=0.5):
         """Run prediction without verbose output"""

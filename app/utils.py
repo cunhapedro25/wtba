@@ -2,7 +2,6 @@ import cv2
 import base64
 import threading
 import yt_dlp
-from flask import Response
 from pathlib import Path
 
 class DetectionProcessor:
@@ -27,11 +26,12 @@ class DetectionProcessor:
         save_dir.mkdir(parents=True, exist_ok=True)
 
         results = self.model.predict(
-            source=image_path,
+            source=str(image_path),
             conf=conf_threshold,
             save=True,
             project="runs/detect",
-            name="predict"
+            name="predict",
+            exist_ok=True
         )
 
         detections = []
@@ -40,11 +40,12 @@ class DetectionProcessor:
             for box in res.boxes:
                 cls_id = int(box.cls.cpu().numpy()[0])
                 conf = float(box.conf.cpu().numpy()[0])
-                x1, y1, x2, y2 = box.xyxy.cpu().numpy()[0].astype(int)
+                coords = box.xyxy.cpu().numpy()[0]
+                x1, y1, x2, y2 = (int(v) for v in coords)
                 if cls_id < len(self.model.class_names):
                     detections.append({
                         'animal': self.model.class_names[cls_id],
-                        'confidence': conf,
+                        'confidence': float(conf),
                         'bbox': [x1, y1, x2, y2]
                     })
 
@@ -75,7 +76,8 @@ class DetectionProcessor:
             conf=conf_threshold,
             save=True,
             project="runs/detect",
-            name="predict"
+            name="predict",
+            exist_ok=True
         )
 
         detections = []
@@ -85,10 +87,12 @@ class DetectionProcessor:
                 for box in res.boxes:
                     cls_id = int(box.cls.cpu().numpy()[0])
                     conf = float(box.conf.cpu().numpy()[0])
+                    raw_frame = getattr(res, "orig_frame_id", None)
+                    frame_idx = int(raw_frame) if raw_frame is not None else None
                     if cls_id < len(self.model.class_names):
                         detections.append({
                             'animal': self.model.class_names[cls_id],
-                            'confidence': conf,
+                            'confidence': float(conf),
                             'frame': frame_idx
                         })
 
@@ -122,43 +126,60 @@ class DetectionProcessor:
         thread = threading.Thread(target=_run, daemon=True)
         thread.start()
 
-    def download_and_process_youtube(self, url, conf_threshold=0.5):
+    def download_youtube_video(self, url, conf_threshold=0.5):
+        """Download YouTube video and prepare it for streaming (same end state as upload)"""
         def _run():
             self.is_processing = True
             self.current_results = {'type': 'download_progress', 'status': 'Downloading...'}
             current_dir = Path.cwd()
-            dl_dir = current_dir / "downloads"
-            dl_dir.mkdir(parents=True, exist_ok=True)
+            upload_dir = current_dir / "uploads"
+            upload_dir.mkdir(parents=True, exist_ok=True)
 
             ydl_opts = {
-                'outtmpl': str(dl_dir / '%(title)s.%(ext)s'),
+                'outtmpl': str(upload_dir / '%(title)s.%(ext)s'),
                 'format': 'best[ext=mp4]/best',
                 'noplaylist': True,
             }
+
             try:
                 with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                     info = ydl.extract_info(url, download=False)
                     title = info.get('title', 'video')
+                    # Clean title for file matching
+                    safe_title = "".join(c for c in title if c.isalnum() or c in (' ', '-', '_')).rstrip()
                     self.current_results = {'type': 'download_progress', 'status': f'Downloading: {title}'}
                     ydl.download([url])
 
-                files = list(dl_dir.glob(f"{title}.*"))
+                # Find the downloaded file
+                files = list(upload_dir.glob(f"*{safe_title[:20]}*"))  # Use partial title match
                 if not files:
-                    files = [f for f in dl_dir.iterdir() if f.suffix.lower() in {'.mp4','.avi','.mov','.mkv','.webm'}]
+                    # Fallback: find recent video files
+                    files = [
+                        f for f in upload_dir.iterdir()
+                        if f.suffix.lower() in {'.mp4', '.avi', '.mov', '.mkv', '.webm'}
+                    ]
+                    if files:
+                        files = sorted(files, key=lambda f: f.stat().st_mtime, reverse=True)
+
                 if not files:
                     raise Exception("Downloaded video not found")
 
-                self.current_results = {'type': 'download_progress', 'status': 'Processing video...'}
-                # Para streaming, usamos diretamente generate_video_feed após download
-                self.current_video_path = str(files[0])
+                video_path = str(files[0])
+                filename = Path(video_path).name
+
+                # Set up for streaming (same final state as upload_video)
+                self.current_video_path = video_path
                 self.conf_threshold = conf_threshold
-                self.current_stats = {
-                    'frames_processed': 0,
-                    'detections_by_class': {},
-                    'total_detections': 0
+
+                self.current_results = {
+                    'type': 'ready_to_stream',
+                    'status': 'ready_to_stream',
+                    'filename': filename
                 }
+
             except Exception as e:
                 self.current_results = {'type': 'error', 'message': str(e)}
+            finally:
                 self.is_processing = False
 
         thread = threading.Thread(target=_run, daemon=True)
@@ -206,6 +227,7 @@ class DetectionProcessor:
     def generate_video_feed(self, video_path, conf_threshold=0.5):
         cap = cv2.VideoCapture(video_path)
         if not cap.isOpened():
+            yield b'--frame\r\nContent-Type: image/jpeg\r\n\r\n\r\n'
             return
 
         self._reset_stats()
@@ -245,3 +267,17 @@ class DetectionProcessor:
         for a, cnt in counts.items():
             summary += f"{a}: {cnt} (avg {sums[a]/cnt:.3f})\n"
         return summary
+
+    def stop_all(self):
+        """
+        Interrompe qualquer processamento em andamento (download, geração de vídeo ou estatísticas)
+        e limpa as variáveis internas para permitir um novo fluxo sem resíduos.
+        """
+
+        self.is_streaming = False
+        self.is_processing = False
+
+        self.current_video_path = None
+        self.conf_threshold = 0.5
+        self.current_results = {}
+        self._reset_stats()
