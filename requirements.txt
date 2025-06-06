@@ -1,0 +1,7 @@
+Flask
+opencv-python
+ultralytics
+yt-dlp
+numpy
+Pillow
+Werkzeug

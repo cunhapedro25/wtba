@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trail Camera Detection System</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#667eea',
+                        secondary: '#764ba2',
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="min-h-screen bg-gradient-to-br from-primary to-secondary">
+<div class="container mx-auto px-4 py-8">
+    <div class="text-center mb-12">
+        <h1 class="text-4xl md:text-5xl font-bold text-white mb-4 drop-shadow-lg">
+            🦌 Trail Camera Detection System
+        </h1>
+        <p class="text-xl text-white/90 drop-shadow">
+            AI-powered wildlife detection for images and videos
+        </p>
+    </div>
+
+    <div class="grid lg:grid-cols-2 gap-8 mb-8">
+        <div class="bg-white rounded-2xl shadow-2xl p-8 backdrop-blur-sm">
+            <h2 class="text-2xl font-bold text-primary mb-6">Upload & Settings</h2>
+
+            <div class="mb-8 p-6 border-2 border-dashed border-primary/30 rounded-xl hover:border-primary/60 hover:bg-blue-50/50 transition-all duration-300">
+                <div class="text-center">
+                    <div class="mb-4">
+                        <span class="text-4xl">📸</span>
+                    </div>
+                    <h3 class="text-lg font-semibold text-gray-700 mb-4">Image Detection</h3>
+                    <input type="file" id="imageInput" class="hidden" accept="image/*">
+                    <button
+                            onclick="document.getElementById('imageInput').click()"
+                            class="bg-gradient-to-r from-primary to-secondary text-white px-6 py-3 rounded-lg font-medium hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200">
+                        Select Image
+                    </button>
+                </div>
+            </div>
+
+            <div class="mb-8 p-6 border-2 border-dashed border-primary/30 rounded-xl hover:border-primary/60 hover:bg-blue-50/50 transition-all duration-300">
+                <div class="text-center">
+                    <div class="mb-4">
+                        <span class="text-4xl">🎥</span>
+                    </div>
+                    <h3 class="text-lg font-semibold text-gray-700 mb-4">Video Detection</h3>
+                    <input type="file" id="videoInput" class="hidden" accept="video/*">
+                    <button
+                            onclick="document.getElementById('videoInput').click()"
+                            class="bg-gradient-to-r from-primary to-secondary text-white px-6 py-3 rounded-lg font-medium hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200">
+                        Select Video
+                    </button>
+                </div>
+            </div>
+
+            <div class="mb-8">
+                <label for="confidenceSlider" class="block text-sm font-semibold text-gray-700 mb-2">
+                    Confidence Threshold: <span id="confidenceValue" class="text-primary">0.50</span>
+                </label>
+                <input
+                        type="range"
+                        id="confidenceSlider"
+                        class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider"
+                        min="0.1"
+                        max="1.0"
+                        step="0.05"
+                        value="0.5">
+            </div>
+
+            <div class="p-6 bg-gray-50 rounded-xl">
+                <div class="mb-4">
+                    <span class="text-2xl mr-2">🌐</span>
+                    <span class="text-lg font-semibold text-gray-700">YouTube Video</span>
+                </div>
+                <input
+                        type="text"
+                        id="youtubeUrl"
+                        class="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-primary focus:outline-none transition-colors duration-200 mb-4"
+                        placeholder="Enter YouTube URL...">
+                <button
+                        onclick="processYoutube()"
+                        class="w-full bg-gradient-to-r from-primary to-secondary text-white px-6 py-3 rounded-lg font-medium hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200">
+                    Download & Process
+                </button>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-2xl shadow-2xl p-8 backdrop-blur-sm">
+            <h2 class="text-2xl font-bold text-primary mb-6">Detection Preview</h2>
+            <div
+                    id="imageContainer"
+                    class="min-h-80 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl border-2 border-dashed border-gray-200 flex items-center justify-center">
+                <div class="text-center text-gray-500">
+                    <div class="text-6xl mb-4">🖼️</div>
+                    <p class="text-lg">Select an image or video to see detection results</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="bg-white rounded-2xl shadow-2xl p-8 backdrop-blur-sm">
+        <h2 class="text-2xl font-bold text-primary mb-6">📊 Detection Results</h2>
+
+        <div id="statusMessage" class="hidden mb-6"></div>
+
+        <div id="resultsGrid" class="hidden grid lg:grid-cols-2 gap-8">
+            <div class="bg-gradient-to-br from-blue-50 to-indigo-50 p-6 rounded-xl border-l-4 border-primary">
+                <h3 class="text-xl font-bold text-primary mb-4">Summary</h3>
+                <div id="summaryText" class="text-gray-700 whitespace-pre-line leading-relaxed"></div>
+            </div>
+
+            <div class="bg-gradient-to-br from-gray-50 to-blue-50 p-6 rounded-xl">
+                <h3 class="text-xl font-bold text-primary mb-4">Individual Detections</h3>
+                <div id="detectionsList" class="max-h-96 overflow-y-auto space-y-3"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    let currentConfidence = 0.5;
+    let isProcessing = false;
+
+    document.getElementById('confidenceSlider').addEventListener('input', function() {
+        currentConfidence = parseFloat(this.value);
+        document.getElementById('confidenceValue').textContent = currentConfidence.toFixed(2);
+    });
+
+    document.getElementById('imageInput').addEventListener('change', function() {
+        if (this.files.length > 0) {
+            processImage(this.files[0]);
+        }
+    });
+
+    document.getElementById('videoInput').addEventListener('change', function() {
+        if (this.files.length > 0) {
+            processVideo(this.files[0]);
+        }
+    });
+
+    function showStatus(message, isError = false) {
+        const statusDiv = document.getElementById('statusMessage');
+        statusDiv.innerHTML = message;
+        statusDiv.className = `mb-6 p-4 rounded-xl text-center text-lg font-medium ${
+            isError
+                ? 'bg-red-50 text-red-700 border border-red-200'
+                : 'bg-blue-50 text-blue-700 border border-blue-200'
+        }`;
+        statusDiv.classList.remove('hidden');
+    }
+
+    function hideStatus() {
+        document.getElementById('statusMessage').classList.add('hidden');
+    }
+
+    function processImage(file) {
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('confidence', currentConfidence);
+
+        showStatus('Processing image...');
+
+        fetch('/upload_image', {
+            method: 'POST',
+            body: formData
+        })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    showStatus('Error: ' + data.error, true);
+                } else {
+                    displayImageResults(data);
+                }
+            })
+            .catch(error => {
+                showStatus('Error: ' + error.message, true);
+            });
+    }
+
+    function processVideo(file) {
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('confidence', currentConfidence);
+
+        showStatus('Preparing video stream...');
+        isProcessing = true;
+
+        fetch('/upload_video', {
+            method: 'POST',
+            body: formData
+        })
+            .then(r => r.json())
+            .then(data => {
+                if (data.error) {
+                    showStatus('Error: ' + data.error, true);
+                    isProcessing = false;
+                    return;
+                }
+                document.getElementById('imageContainer').innerHTML =
+                    `<img id="videoStream" class="max-w-full max-h-96 rounded-xl shadow-lg" src="/video_feed" alt="Video Stream">`;
+                pollStats();
+            })
+            .catch(err => {
+                showStatus('Error: ' + err.message, true);
+                isProcessing = false;
+            });
+    }
+
+    function processYoutube() {
+        const url = document.getElementById('youtubeUrl').value.trim();
+        if (!url) {
+            showStatus('Please enter a YouTube URL', true);
+            return;
+        }
+
+        showStatus('Downloading YouTube video...');
+        isProcessing = true;
+
+        fetch('/youtube_video', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                url: url,
+                confidence: currentConfidence
+            })
+        })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    showStatus('Error: ' + data.error, true);
+                    isProcessing = false;
+                } else {
+                    document.getElementById('imageContainer').innerHTML =
+                        `<img id="videoStream" class="max-w-full max-h-96 rounded-xl shadow-lg" src="/video_feed" alt="YouTube Stream">`;
+                    pollStats();
+                }
+            })
+            .catch(error => {
+                showStatus('Error: ' + error.message, true);
+                isProcessing = false;
+            });
+    }
+
+    function pollStats() {
+        if (!isProcessing) return;
+
+        fetch('/get_stats')
+            .then(r => r.json())
+            .then(stats => {
+                let text = `
+                <strong>Frames processed:</strong> ${stats.frames_processed}<br>
+                <strong>Total detections:</strong> ${stats.total_detections}<br>
+            `;
+                for (const cls in stats.detections_by_class) {
+                    text += `<strong>${cls}:</strong> ${stats.detections_by_class[cls]}<br>`;
+                }
+                if (stats.finished) {
+                    text += `<em>Video finished.</em>`;
+                    isProcessing = false;
+                }
+                document.getElementById('summaryText').innerHTML = text;
+
+                if (isProcessing) {
+                    setTimeout(pollStats, 1000);
+                } else {
+                    document.getElementById('resultsGrid').classList.remove('hidden');
+                }
+            })
+            .catch(err => {
+                console.error('Polling stats error:', err);
+                isProcessing = false;
+            });
+    }
+
+    function displayImageResults(data) {
+        hideStatus();
+
+        if (data.image) {
+            document.getElementById('imageContainer').innerHTML =
+                `<img src="${data.image}" class="max-w-full max-h-96 rounded-xl shadow-lg" alt="Detection Result">`;
+        }
+
+        document.getElementById('summaryText').textContent = data.summary;
+
+        const detectionsList = document.getElementById('detectionsList');
+        if (data.detections && data.detections.length > 0) {
+            detectionsList.innerHTML = data.detections.map((det, index) =>
+                `<div class="bg-white p-4 rounded-lg shadow-sm border-l-4 ${
+                    index % 2 === 0 ? 'border-primary' : 'border-secondary'
+                }">
+                    <div class="font-bold text-lg text-gray-800">${det.animal}</div>
+                    <div class="text-sm text-gray-600 mt-1">
+                        Confidence: <span class="font-medium">${(det.confidence * 100).toFixed(1)}%</span>
+                    </div>
+                    <div class="text-xs text-gray-500 mt-1">
+                        Location: [${det.bbox.join(', ')}]
+                    </div>
+                </div>`
+            ).join('');
+        } else {
+            detectionsList.innerHTML = '<p class="text-gray-500 text-center py-8">No detections found</p>';
+        }
+
+        document.getElementById('resultsGrid').classList.remove('hidden');
+    }
+</script>
+</body>
+</html>
