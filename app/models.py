@@ -8,8 +8,8 @@ from ultralytics import YOLO
 class DetectionModel:
     def __init__(self):
         self.model = None
-        self.class_names = ['hog', 'rabbit', 'pigeon', 'deer', 'squirrel']
-        self.colors = [(255, 0, 0), (0, 255, 0), (0, 0, 255), (128, 128, 0), (0, 128, 128)]
+        self.class_names = ['hog', 'rabbit', 'pigeon', 'deer']
+        self.colors = [(255, 0, 0), (0, 255, 0), (0, 0, 255), (128, 128, 0)]
         self.model_path = None
         self._setup_model_path()
 

@@ -6,4 +6,5 @@ numpy
 Pillow
 Werkzeug
 python-dotenv
-ultralytics
+roboflow
+pandas

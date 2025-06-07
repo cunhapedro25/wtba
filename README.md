@@ -18,7 +18,6 @@ wtba/
 │   │   ├── components
 │   │   │   ├── background.html
 │   │   │   ├── confidence_control.html
-│   │   │   ├── detection_preview.html
 │   │   │   ├── footer.html
 │   │   │   ├── header.html
 │   │   │   ├── image_upload.html
@@ -64,10 +63,8 @@ source venv/bin/activate
 pip install -r requirements.txt
 ```
 
-4. **Run model Training**
-```bash
-yolo detect train data=./wildlife_dataset/data.yaml model=yolo11n.pt epochs=100 imgsz=640
-```
+4. **Create dataset and Train Model**
+Run the notebook `train-model.ipynb` to create the dataset and train the YOLO model.
 
 5. **Add your YOLO model:**
    - Place your trained model file `best.pt` in the `models/` directory
@@ -78,7 +75,7 @@ yolo detect train data=./wildlife_dataset/data.yaml model=yolo11n.pt epochs=100 
 python run.py
 ```
 
-The application will be available at `http://127.0.0.1:5000`
+The application will be available at `http://127.0.0.1:8080`
 
 ### 4. Usage
 
@@ -94,7 +91,7 @@ The application will be available at `http://127.0.0.1:5000`
 - YouTube video download and processing
 - Configurable confidence thresholds
 - Responsive web interface with Tailwind CSS
-- Support for multiple animal classes: hog, coyote, deer, rabbit
+- Support for multiple animal classes: hog, deer, rabbit, and pigeon
 
 ## API Endpoints
 
@@ -103,6 +100,8 @@ The application will be available at `http://127.0.0.1:5000`
 - `POST /upload_video` - Process uploaded video
 - `POST /youtube_video` - Download and process YouTube video
 - `GET /get_results` - Poll processing results
+- `GET /video_feed` - Stream video feed for real-time detection
+- `GET /get_stats` - Get statistics of processed videos
 
 ## Dependencies
 
@@ -112,3 +111,6 @@ See `requirements.txt` for complete list of dependencies including:
 - Ultralytics YOLO for object detection
 - yt-dlp for YouTube downloads
 - NumPy for numerical operations
+- Pillow for image handling
+- Werkzeug for file handling
+- python-dotenv for environment variable management
