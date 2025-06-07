@@ -6,22 +6,33 @@ A project developed for the AOOP UC at IPVC, focused on detecting animals—such
 
 ```
 wtba/
-├── app/
-│   ├── __init__.py
-│   ├── main.py
-│   ├── models.py
-│   ├── utils.py
-│   └── templates/
-│       └── index.html
-│   └──  static/
-│       └── style.css
-├── models/
+├── app
+│   ├──  __init__.py
+│   ├──  main.py
+│   ├──  models.py
+│   ├── static
+│   │   ├── trail-camera.png
+│   │   └── white-noise.webp
+│   ├── templates
+│   │   ├── base.html
+│   │   ├── components
+│   │   │   ├── background.html
+│   │   │   ├── confidence_control.html
+│   │   │   ├── detection_preview.html
+│   │   │   ├── footer.html
+│   │   │   ├── header.html
+│   │   │   ├── image_upload.html
+│   │   │   ├── night_toggle.html
+│   │   │   ├── video_upload.html
+│   │   │   └── youtube_upload.html
+│   │   └── index.html
+│   └── utils.py
+├── models
 │   └── best.pt
-├── uploads/
-├── downloads/
+├── README.md
 ├── requirements.txt
 ├── run.py
-└── README.md
+└── train-model.ipynb
 ```
 
 ## Setup Instructions

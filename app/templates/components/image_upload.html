@@ -1,0 +1,86 @@
+<div class="camera-frame rounded-2xl p-6 drop-zone cursor-pointer group hover:scale-105 transition-all duration-300"
+     id="imageDropZone">
+    <div class="text-center">
+        <div class="mb-6 text-6xl group-hover:scale-110 transition-transform duration-300">📷</div>
+        <h3 class="text-xl text-white mb-3">Image upload</h3>
+        <p class="text-gray-300 text-sm mb-6 font-mono">Drop image here or click to select</p>
+        <input type="file" id="imageInput" class="hidden" accept="image/*" multiple>
+        <div class="inline-flex items-center px-6 py-3 bg-primary-500 text-white font-bold rounded-lg transition-all duration-300">
+            SELECT FILES
+        </div>
+    </div>
+</div>
+
+<script>
+    const main = document.getElementById('mainBody');
+    const imageDropZone = document.getElementById('imageDropZone');
+    const imageInput = document.getElementById('imageInput');
+
+    imageDropZone.addEventListener('click', () => imageInput.click());
+    imageInput.addEventListener('change', function() {
+        if (this.files.length && typeof window.showDetections === 'function') {
+            window.showDetections();
+            processImage(this.files[0]);
+        }
+    });
+    main.addEventListener('dragover', e => {
+        e.preventDefault(); e.stopPropagation();
+        imageDropZone.classList.add('border','border-dashed','border-primary-400','bg-primary-500/20','backdrop-blur-md');
+        imageDropZone.classList.remove('camera-frame');
+    });
+    imageDropZone.addEventListener('dragover', e => {
+        e.preventDefault(); e.stopPropagation();
+        imageDropZone.classList.add('scale-105');
+    });
+    main.addEventListener('dragleave', e => {
+        e.preventDefault(); e.stopPropagation();
+        if (!imageDropZone.contains(e.relatedTarget)) {
+            imageDropZone.classList.remove('border','border-dashed','border-primary-400','bg-primary-500/20','backdrop-blur-md');
+            imageDropZone.classList.add('camera-frame');
+        }
+    });
+    imageDropZone.addEventListener('dragleave', e => {
+        e.preventDefault(); e.stopPropagation();
+        imageDropZone.classList.remove('scale-105');
+    });
+    imageDropZone.addEventListener('drop', e => {
+        e.preventDefault(); e.stopPropagation();
+        imageDropZone.classList.remove('border','border-dashed','border-primary-400','bg-primary-500/20','backdrop-blur-md');
+        imageDropZone.classList.add('camera-frame');
+        const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('image/'));
+        if (files.length && typeof window.showDetections === 'function') {
+            window.showDetections();
+            processImage(files[0]);
+        }
+    });
+
+    function processImage(file) {
+        const formData = new FormData();
+        formData.append('file', file);
+
+        let confidence = window.getCurrentConfidence();
+        if (typeof confidence !== 'number' || isNaN(confidence)) {
+            confidence = 0.5;
+        }
+        formData.append('confidence', confidence.toString());
+
+
+        if (typeof window.showStatus === 'function') window.showStatus('Processing image...');
+        fetch('/upload_image', { method: 'POST', body: formData })
+            .then(r => {
+                if (!r.ok) throw new Error(`HTTP ${r.status}`);
+                if (!r.headers.get('Content-Type')?.includes('application/json')) {
+                    throw new Error('Expected JSON, got ' + r.headers.get('Content-Type'));
+                }
+                return r.json();
+            })
+            .then(data => {
+                if (data.error) {
+                    window.showStatus?.('Error: ' + data.error, true);
+                } else {
+                    window.displayImageResults?.(data);
+                }
+            })
+            .catch(err => window.showStatus?.('Error: ' + err.message, true));
+    }
+</script>

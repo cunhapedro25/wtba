@@ -1,0 +1,106 @@
+<div class="camera-frame rounded-2xl p-6">
+    <div class="flex items-center mb-6">
+        <span class="text-3xl mr-3">🌐</span>
+        <h3 class="text-xl  text-red-400">Youtube Link</h3>
+    </div>
+    <div class="flex flex-col sm:flex-row gap-4">
+        <input type="text" id="youtubeUrl"
+               class="flex-1 px-4 py-3 bg-black/60 border border-red-500/30 rounded-lg text-primary-300 placeholder-gray-400 focus:border-red-400 focus:outline-none transition-colors font-mono"
+               placeholder="Enter YouTube URL for analysis...">
+        <button id="youtubeProcessBtn" onclick="processYoutube()"
+                class="px-8 py-3 bg-gradient-to-r from-red-600 to-red-500 text-white font-bold rounded-lg hover:from-red-500 hover:to-red-400 transition-all duration-300 transform hover:scale-105  whitespace-nowrap">
+            ANALYZE STREAM
+        </button>
+    </div>
+</div>
+
+<script>
+    let isYoutubeProcessing = false;
+
+    document.addEventListener('DOMContentLoaded', () => {
+        const urlInput = document.getElementById('youtubeUrl');
+        const processBtn = document.getElementById('youtubeProcessBtn');
+
+        urlInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') processYoutube();
+        });
+
+        processBtn.addEventListener('click', processYoutube);
+
+        function processYoutube() {
+            const url = urlInput.value.trim();
+            if (!url) {
+                return window.showStatus?.('Please enter a YouTube URL', true);
+            }
+            if (!url.includes('youtube.com') && !url.includes('youtu.be')) {
+                return window.showStatus?.('Please enter a valid YouTube URL', true);
+            }
+            window.showDetections?.();
+            window.showStatus?.('Downloading YouTube video...');
+            isYoutubeProcessing = true;
+
+            processBtn.disabled = true;
+            processBtn.textContent = 'PROCESSING...';
+            processBtn.classList.add('opacity-50');
+
+            const confidence = window.getCurrentConfidence?.() ?? 0.5;
+
+            fetch('/youtube_video', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ url, confidence })
+            })
+                .then(r => r.json())
+                .then(data => {
+                    if (data.error) {
+                        window.showStatus?.('Error: ' + data.error, true);
+                        resetYoutubeButton();
+                        isYoutubeProcessing = false;
+                    } else {
+                        pollYoutubeStatus();
+                    }
+                })
+                .catch(err => {
+                    window.showStatus?.('Error: ' + err.message, true);
+                    resetYoutubeButton();
+                    isYoutubeProcessing = false;
+                });
+        }
+
+        function pollYoutubeStatus() {
+            if (!isYoutubeProcessing) return;
+            fetch('/get_results')
+                .then(r => r.json())
+                .then(data => {
+                    if (data.status === 'ready_to_stream') {
+                        window.showStatus?.('YouTube video ready! Starting stream...');
+                        window.startVideoStream();
+                        resetYoutubeButton();
+                    } else if (data.status === 'error') {
+                        window.showStatus?.('Error: ' + data.error, true);
+                        resetYoutubeButton();
+                        isYoutubeProcessing = false;
+                    } else {
+                        window.showStatus?.(data.message || 'Downloading YouTube video...');
+                        setTimeout(pollYoutubeStatus, 2000);
+                    }
+                })
+                .catch(() => setTimeout(pollYoutubeStatus, 3000));
+        }
+
+        function resetYoutubeButton() {
+            processBtn.disabled = false;
+            processBtn.textContent = 'ANALYZE STREAM';
+            processBtn.classList.remove('opacity-50');
+        }
+
+        window.processYoutube = processYoutube;
+        window.clearYoutubeUrl = () => {
+            urlInput.value = '';
+            resetYoutubeButton();
+            isYoutubeProcessing = false;
+        };
+        window.isYoutubeProcessing = () => isYoutubeProcessing;
+        window.setYoutubeProcessing = s => { isYoutubeProcessing = s; };
+    });
+</script>

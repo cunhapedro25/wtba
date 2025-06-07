@@ -7,3 +7,5 @@ uploads/
 wildlife_dataset/
 
 .env
+
+__pycache__/

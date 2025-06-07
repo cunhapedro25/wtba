@@ -1,0 +1,31 @@
+<div class="w-full absolute bottom-0 left-0 p-1 bg-black text-white font-bold text-lg flex gap-32 justify-center items-center">
+    <div id="date"></div>
+
+    <div id="time"></div>
+
+    <div>
+        <p>CAMERA 1</p>
+    </div>
+</div>
+
+<script>
+    const dateEl = document.getElementById('date');
+    const timeEl = document.getElementById('time');
+
+    function updateDateTime() {
+        const now = new Date();
+
+        const day   = String(now.getDate()).padStart(2, '0');
+        const month = String(now.getMonth() + 1).padStart(2, '0');
+        const year  = now.getFullYear();
+        dateEl.textContent = `${day}/${month}/${year}`;
+
+        const hours   = String(now.getHours()).padStart(2, '0');
+        const minutes = String(now.getMinutes()).padStart(2, '0');
+        const seconds = String(now.getSeconds()).padStart(2, '0');
+        timeEl.textContent = `${hours}:${minutes}:${seconds}`;
+    }
+
+    updateDateTime();
+    setInterval(updateDateTime, 1000);
+</script>

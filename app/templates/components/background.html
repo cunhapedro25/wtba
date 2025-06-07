@@ -1,0 +1,65 @@
+<div class="fixed inset-0 z-0 transition-all duration-1000 overflow-hidden">
+    <img id="forestBackground" src="{{ url_for('static', filename='trail-camera.png') }}" alt="trail camera background"
+         class="w-full h-full object-cover opacity-90 transition-all duration-1000">
+
+    <div class="absolute inset-0 pointer-events-none">
+        <div class="firefly animate-pulse-glow" style="top: 20%; left: 15%;" id="firefly1"></div>
+        <div class="firefly animate-pulse-glow animation-delay-1000" style="top: 60%; left: 80%;" id="firefly2"></div>
+        <div class="firefly animate-pulse-glow animation-delay-2000" style="top: 40%; left: 25%;" id="firefly3"></div>
+        <div class="firefly animate-pulse-glow animation-delay-3000" style="top: 70%; left: 50%;" id="firefly4"></div>
+        <div class="firefly animate-pulse-glow animation-delay-4000" style="top: 30%; left: 70%;" id="firefly5"></div>
+        <div class="firefly animate-pulse-glow animation-delay-5000" style="top: 80%; left: 40%;" id="firefly6"></div>
+        <div class="firefly animate-pulse-glow animation-delay-6000" style="top: 10%; left: 90%;" id="firefly7"></div>
+        <div class="firefly animate-pulse-glow animation-delay-7000" style="top: 50%; left: 10%;" id="firefly8"></div>
+        <div class="firefly animate-pulse-glow animation-delay-8000" style="top: 90%; left: 30%;" id="firefly9"></div>
+        <div class="firefly animate-pulse-glow animation-delay-9000" style="top: 20%; left: 60%;" id="firefly10"></div>
+        <div class="firefly animate-pulse-glow animation-delay-10000" style="top: 70%; left: 20%;" id="firefly11"></div>
+    </div>
+
+    <div class="static absolute top-0 left-0"></div>
+</div>
+
+<style>
+    .static {
+        width: 600%;
+        height: 600%;
+        background-image: url("{{ url_for('static', filename='white-noise.webp') }}");
+        background-size: 8rem 8rem;
+        background-repeat: repeat;
+        inset: -200%;
+        opacity: 25%;
+
+        animation: staticAnimation 0.2s infinite linear both;
+    }
+
+    @keyframes staticAnimation {
+        0% {
+            transform: translateX(10%) translateY(10%);
+        }
+        100% {
+            transform: translateX(-10%) translateY(-10%);
+        }
+    }
+
+    .firefly {
+        display: none;
+        position: absolute;
+        width: 4px;
+        height: 4px;
+        background: radial-gradient(circle, #fbbf24, #f59e0b);
+        border-radius: 50%;
+        box-shadow: 0 0 10px #fbbf24, 0 0 20px #f59e0b, 0 0 30px #d97706;
+        transition: all 3s ease-in-out;
+    }
+
+    .firefly::before {
+        content: '';
+        position: absolute;
+        top: -2px;
+        left: -2px;
+        width: 8px;
+        height: 8px;
+        background: radial-gradient(circle, rgba(251, 191, 36, 0.3), transparent);
+        border-radius: 50%;
+    }
+</style>

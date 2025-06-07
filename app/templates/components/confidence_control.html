@@ -1,0 +1,33 @@
+<div class="camera-frame rounded-2xl p-6 mb-8">
+    <div class="flex items-center justify-between mb-6">
+        <h2 class="text-xl  text-primary-400 flex items-center">
+            <div class="w-3 h-3 bg-primary-500 rounded-full mr-3 animate-pulse"></div>
+            DETECTION SENSITIVITY
+        </h2>
+        <div class="text-2xl  font-bold text-primary-300" id="confidenceValue">0.50</div>
+    </div>
+
+    <div class="space-y-4">
+        <input type="range" id="confidenceSlider"
+               class="confidence-slider w-full"
+               min="0.1" max="1.0" step="0.05" value="0.5">
+        <div class="flex justify-between text-xs font-mono text-gray-400">
+            <span class="flex items-center"><span class="w-2 h-2 bg-red-500 rounded-full mr-1"></span>LOW</span>
+            <span class="flex items-center"><span class="w-2 h-2 bg-yellow-500 rounded-full mr-1"></span>MEDIUM</span>
+            <span class="flex items-center"><span class="w-2 h-2 bg-primary-500 rounded-full mr-1"></span>HIGH</span>
+        </div>
+    </div>
+</div>
+
+<script>
+    let currentConfidence = 0.5;
+
+    // Initialize confidence slider
+    document.getElementById('confidenceSlider').addEventListener('input', function() {
+        currentConfidence = parseFloat(this.value);
+        document.getElementById('confidenceValue').textContent = currentConfidence.toFixed(2);
+    });
+
+    // Export confidence value for other components
+    window.getCurrentConfidence = () => currentConfidence;
+</script>

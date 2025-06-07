@@ -1,0 +1,128 @@
+<div class="camera-frame rounded-2xl p-6 drop-zone cursor-pointer group hover:scale-105 transition-all duration-300"
+     id="videoDropZone">
+    <div class="text-center">
+        <div class="mb-6 text-6xl group-hover:scale-110 transition-transform duration-300">🎥</div>
+        <h3 class="text-xl text-white mb-3">Video Upload</h3>
+        <p class="text-gray-300 text-sm mb-6 font-mono">Drop video here or click to select</p>
+        <input type="file" id="videoInput" class="hidden" accept="video/*">
+        <div class="inline-flex items-center px-6 py-3 bg-primary-500 text-white font-bold rounded-lg transition-all duration-300">
+            SELECT VIDEO
+        </div>
+    </div>
+</div>
+
+<script>
+    const videoDropZone = document.getElementById('videoDropZone');
+    const videoInput = document.getElementById('videoInput');
+    let isVideoProcessing = false;
+
+    videoDropZone.addEventListener('click', () => {
+        videoInput.click();
+    });
+
+    videoInput.addEventListener('change', function() {
+        if (this.files.length > 0) {
+            if (typeof window.showDetections === 'function') {
+                window.showDetections();
+            }
+            processVideo(this.files[0]);
+        }
+    });
+
+    main.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        videoDropZone.classList.add('border', 'border-dashed', 'border-primary-400', 'bg-primary-500/20', 'backdrop-blur-md');
+        videoDropZone.classList.remove('camera-frame');
+    });
+
+    videoDropZone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        videoDropZone.classList.add('scale-105');
+    });
+
+    main.addEventListener('dragleave', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (!videoDropZone.contains(e.relatedTarget)) {
+            videoDropZone.classList.remove('border', 'border-dashed', 'border-primary-400', 'bg-primary-500/20', 'backdrop-blur-md');
+            videoDropZone.classList.add('camera-frame');
+        }
+    });
+
+    videoDropZone.addEventListener('dragleave', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        videoDropZone.classList.remove('scale-105');
+    });
+
+    videoDropZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        videoDropZone.classList.remove('border', 'border-dashed', 'border-primary-400', 'bg-primary-500/20', 'backdrop-blur-md');
+        videoDropZone.classList.add('camera-frame');
+
+        const files = Array.from(e.dataTransfer.files);
+        const videoFiles = files.filter(file => file.type.startsWith('video/'));
+
+        if (videoFiles.length > 0) {
+            if (typeof window.showDetections === 'function') {
+                window.showDetections();
+            }
+            processVideo(videoFiles[0]);
+        }
+    });
+
+    function processVideo(file) {
+        const formData = new FormData();
+        formData.append('file', file);
+
+        let confidence = window.getCurrentConfidence();
+        if (typeof confidence !== 'number' || isNaN(confidence)) {
+            confidence = 0.5;
+        }
+        formData.append('confidence', confidence.toString());
+
+        if (typeof window.showStatus === 'function') {
+            window.showStatus('Preparing video stream...');
+        }
+        isVideoProcessing = true;
+
+        fetch('/upload_video', {
+            method: 'POST',
+            body: formData
+        })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+                const ct = response.headers.get('Content-Type') || '';
+                if (!ct.includes('application/json')) {
+                    throw new Error('Expected JSON, got ' + ct);
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.error) {
+                    if (typeof window.showStatus === 'function') {
+                        window.showStatus('Error: ' + data.error, true);
+                    }
+                    isVideoProcessing = false;
+                    return;
+                }
+                if (typeof window.startVideoStream === 'function') {
+                    window.startVideoStream();
+                }
+            })
+            .catch(err => {
+                if (typeof window.showStatus === 'function') {
+                    window.showStatus('Error: ' + err.message, true);
+                }
+                isVideoProcessing = false;
+            });
+    }
+
+    window.isVideoProcessing = () => isVideoProcessing;
+    window.setVideoProcessing = state => { isVideoProcessing = state; };
+</script>
