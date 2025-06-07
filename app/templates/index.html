@@ -1,18 +1,375 @@
 {% extends "base.html" %}
 
 {% block content %}
-    <div id="controlPanel" style="animation-delay: 0.3s;">
+<div class="container mx-auto px-6 py-8">
+    <!-- Main Upload Interface -->
+    <div id="options" class="max-w-4xl mx-auto">
         {% include 'components/confidence_control.html' %}
 
-        <div class="grid md:grid-cols-2 gap-6 mb-8">
+        <!-- Upload Options -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+
             {% include 'components/image_upload.html' %}
+
+
             {% include 'components/video_upload.html' %}
         </div>
 
-        {% include 'components/youtube_upload.html' %}
+        <div class="camera-frame rounded-2xl p-6">
+            <div class="flex items-center mb-6">
+                <span class="text-3xl mr-3">🌐</span>
+                <h3 class="text-xl  text-red-400">Youtube Link</h3>
+            </div>
+            <div class="flex flex-col sm:flex-row gap-4">
+                <input type="text" id="youtubeUrl"
+                    class="flex-1 px-4 py-3 bg-black/60 border border-red-500/30 rounded-lg text-primary-300 placeholder-gray-400 focus:border-red-400 focus:outline-none transition-colors font-mono"
+                    placeholder="Enter YouTube URL for analysis...">
+                <button id="youtubeProcessBtn" onclick="processYoutube()"
+                    class="px-8 py-3 bg-gradient-to-r from-red-600 to-red-500 text-white font-bold rounded-lg hover:from-red-500 hover:to-red-400 transition-all duration-300 transform hover:scale-105  whitespace-nowrap">
+                    ANALYZE STREAM
+                </button>
+            </div>
+        </div>
     </div>
 
-    <div id="detection" style="animation-delay: 0.3s;">
-        {% include 'components/detection_preview.html' %}
+    <!-- Detection Preview -->
+    <div id="detections" class="hidden bg-black/60 backdrop-blur-md rounded-2xl mt-8 overflow-hidden">
+        <!-- Top Bar -->
+        <div class="flex items-center justify-between p-4 bg-black/60 border-b border-primary-500/30">
+            <div class="flex items-center space-x-4">
+                <button id="backButton"
+                    class="flex items-center px-4 py-2 bg-red-600 hover:bg-red-500 text-white rounded-lg transition-all duration-300 font-bold uppercase tracking-wide">
+                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                    </svg>
+                    Back
+                </button>
+                <div class="text-primary-400 text-lg font-bold uppercase tracking-wide">Detection Preview</div>
+            </div>
+            <div class="flex items-center space-x-4">
+                <div
+                    class="flex items-center space-x-2 bg-black/60 px-3 py-1 rounded-full border border-primary-500/30">
+                    <div id="statusDot" class="w-2 h-2 bg-primary-500 rounded-full animate-pulse"></div>
+                    <span id="statusIndicator" class="text-primary-400 text-xs font-bold">WAITING</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Content Area -->
+        <div class="detection-preview rounded-b-2xl flex overflow-hidden">
+            <!-- Media Display -->
+
+            <div class="flex-1 flex items-center justify-center p-6 relative">
+                <img id="imageDisplay" src="" alt="Detection Result"
+                    class="max-w-full max-h-full rounded-xl shadow-2xl hidden">
+                <video id="videoDisplay" class="max-w-full max-h-full rounded-xl shadow-2xl hidden" controls autoplay
+                    muted></video>
+                <img id="videoStream" class="max-w-full max-h-full rounded-xl shadow-2xl hidden" alt="Video Stream">
+
+                <div id="loadingOverlay"
+                    class="absolute inset-0 flex items-center justify-center hidden bg-black/50 rounded-xl">
+                    <div class="text-center">
+                        <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-400 mb-4"></div>
+                        <div id="loadingText" class="text-white font-bold text-lg">Processing...</div>
+                    </div>
+                </div>
+
+                <div id="initialPlaceholder" class="text-center text-gray-500">
+                    <p class="text-xl font-bold">Processing...</p>
+                </div>
+            </div>
+
+            <!-- Stats Panel -->
+            <div class="flex flex-col w-80 stats-panel border-l border-primary-500/30 overflow-y-auto">
+                <!-- Live Stats -->
+                <div class="p-6 border-b border-primary-500/30">
+                    <div class="flex items-center mb-4">
+                        <div class="status-dot animate-pulse-green mr-3"></div>
+                        <h3 class="text-lg font-bold text-primary-400 uppercase tracking-wide">Live Stats</h3>
+                    </div>
+                    <div id="classStats" class="space-y-3 text-sm">
+                        <div class="flex justify-between p-2 bg-black/40 rounded">
+                            <span class="text-gray-300 uppercase">Frames:</span>
+                            <span id="frameCount" class="text-primary-300 font-bold">0</span>
+                        </div>
+                        <div class="flex justify-between p-2 bg-black/40 rounded">
+                            <span class="text-gray-300 uppercase">Detections:</span>
+                            <span id="detectionCount" class="text-primary-400 font-bold">0</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Detections List -->
+                <div class="h-full flex-1 p-6 overflow-y-auto">
+                    <h3 class="text-lg font-bold text-primary-400 mb-4 uppercase tracking-wide">Detections</h3>
+                    <div id="detectionsList" class="space-y-3">
+                        <div class="text-center text-gray-500 py-12">
+                            <div class="text-4xl mb-3">🔍</div>
+                            <p class="text-sm">No detections yet...</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Summary -->
+                <div id="finalSummary" class="hidden p-6 border-t border-primary-500/30 bg-black/40">
+                    <h3 class="text-lg font-bold text-primary-400 mb-3 uppercase tracking-wide">Summary</h3>
+                    <div id="summaryContent" class="text-sm text-gray-300"></div>
+                </div>
+            </div>
+        </div>
     </div>
+</div>
+
+<script>
+    let isProcessing = false;
+    let isYoutube = false;
+    let statsInterval = null;
+
+    document.getElementById('backButton').addEventListener('click', () => {
+        fetch('/stop_processing', { method: 'POST' })
+            .catch(() => { });
+
+        clearInterval(statsInterval);
+        isProcessing = false;
+        isYoutube = false;
+
+        resetView();
+    });
+
+    function showDetections() {
+        document.getElementById('options').classList.add('hidden');
+        document.getElementById('detections').classList.remove('hidden');
+        resetDetectionState();
+    }
+
+    function resetView() {
+        document.getElementById('detections').classList.add('hidden');
+        document.getElementById('options').classList.remove('hidden');
+        document.getElementById('youtubeUrl').value = '';
+        resetYoutubeButton();
+
+        // clear file inputs
+        document.getElementById('imageInput').value = '';
+        document.getElementById('videoInput').value = '';
+    }
+
+    function resetDetectionState() {
+        clearInterval(statsInterval);
+        document.getElementById('statusIndicator').textContent = 'WAITING';
+        document.getElementById('frameCount').textContent = '0';
+        document.getElementById('detectionCount').textContent = '0';
+        document.getElementById('initialPlaceholder').style.display = 'block';
+        document.getElementById('imageDisplay').style.display = 'none';
+        document.getElementById('videoDisplay').style.display = 'none';
+        document.getElementById('videoStream').style.display = 'none';
+        document.getElementById('loadingOverlay').style.display = 'none';
+        document.getElementById('detectionsList').innerHTML = `
+                <div class="text-center text-gray-500 py-12">
+                    <div class="text-4xl mb-3">🔍</div>
+                    <p class="text-sm">No detections yet...</p>
+                </div>`;
+        document.getElementById('finalSummary').classList.add('hidden');
+
+        // Reset class stats
+        document.getElementById('classStats').innerHTML = `
+                <div class="flex justify-between p-2 bg-black/40 rounded">
+                    <span class="text-gray-300 uppercase">Frames:</span>
+                    <span id="frameCount" class="text-primary-300 font-bold">0</span>
+                </div>
+                <div class="flex justify-between p-2 bg-black/40 rounded">
+                    <span class="text-gray-300 uppercase">Detections:</span>
+                    <span id="detectionCount" class="text-primary-400 font-bold">0</span>
+                </div>
+            `;
+    }
+
+    function showStatus(message, isError = false) {
+        document.getElementById('statusIndicator').textContent = isError ? 'ERROR' : 'PROCESSING';
+        document.getElementById('statusDot').style.background = isError ? '#ef4444' : '#10b981';
+        document.getElementById('loadingText').textContent = message;
+        document.getElementById('loadingOverlay').style.display = 'flex';
+    }
+
+    function hideStatus() {
+        document.getElementById('loadingOverlay').style.display = 'none';
+        document.getElementById('statusDot').style.background = '#10b981';
+    }
+
+    function processYoutube() {
+        const url = document.getElementById('youtubeUrl').value.trim();
+        if (!url) {
+            showStatus('Please enter a YouTube URL', true);
+            return;
+        }
+
+        showDetections();
+        showStatus('Downloading YouTube video...');
+        isProcessing = true;
+        isYoutube = true;
+
+        const processBtn = document.getElementById('youtubeProcessBtn');
+        processBtn.disabled = true;
+        processBtn.textContent = 'PROCESSING...';
+        processBtn.classList.add('opacity-50');
+
+        fetch('/youtube_video', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                url: url,
+                confidence: window.getCurrentConfidence
+            })
+        })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    showStatus('Error: ' + data.error, true);
+                    isProcessing = false;
+                    resetYoutubeButton();
+                } else {
+                    pollYoutubeStatus();
+                }
+            })
+            .catch(error => {
+                showStatus('Error: ' + error.message, true);
+                isProcessing = false;
+                resetYoutubeButton();
+            });
+    }
+
+    function pollYoutubeStatus() {
+        if (!isProcessing || !isYoutube) return;
+
+        fetch('/get_results')
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'ready_to_stream') {
+                    showStatus('YouTube video ready! Starting stream...');
+                    startVideoStream();
+                    resetYoutubeButton();
+                } else if (data.status === 'error') {
+                    showStatus('Error: ' + data.error, true);
+                    isProcessing = false;
+                    resetYoutubeButton();
+                } else {
+                    showStatus(data.message || 'Downloading YouTube video...');
+                    setTimeout(pollYoutubeStatus, 2000);
+                }
+            })
+            .catch(error => {
+                console.error('Status polling error:', error);
+                setTimeout(pollYoutubeStatus, 3000);
+            });
+    }
+
+    function startVideoStream() {
+        isProcessing = true;
+        document.getElementById('statusIndicator').textContent = 'STREAMING';
+        document.getElementById('initialPlaceholder').style.display = 'none';
+
+        document.getElementById('imageDisplay').style.display = 'none';
+        document.getElementById('videoDisplay').style.display = 'none';
+
+        const img = document.getElementById('videoStream');
+        img.src = '/video_feed?' + new Date().getTime();
+        img.style.display = 'block';
+
+        if (statsInterval) clearInterval(statsInterval);
+        statsInterval = setInterval(pollStats, 1000);
+        hideStatus();
+    }
+
+    function pollStats() {
+        if (!isProcessing) {
+            clearInterval(statsInterval);
+            return;
+        }
+
+        fetch('/get_stats')
+            .then(r => {
+                if (!r.ok) throw new Error(`HTTP ${r.status}`);
+                return r.json();
+            })
+            .then(stats => {
+                document.getElementById('frameCount').textContent = stats.frames_processed || 0;
+                document.getElementById('detectionCount').textContent = stats.total_detections || 0;
+
+                const classDetections = stats.detections_by_class || {};
+                const classHtml = Object.entries(classDetections)
+                    .map(([className, count]) =>
+                        `<div class="flex justify-between p-2 bg-black/40 rounded">
+                                <span class="text-gray-300 uppercase">${className}:</span>
+                                <span class="text-primary-300 font-bold">${count}</span>
+                            </div>`
+                    ).join('');
+
+                const classStatsContainer = document.getElementById('classStats');
+                classStatsContainer.innerHTML = `
+                        <div class="flex justify-between p-2 bg-black/40 rounded">
+                            <span class="text-gray-300 uppercase">Frames:</span>
+                            <span id="frameCount" class="text-primary-300 font-bold">${stats.frames_processed || 0}</span>
+                        </div>
+                        <div class="flex justify-between p-2 bg-black/40 rounded">
+                            <span class="text-gray-300 uppercase">Detections:</span>
+                            <span id="detectionCount" class="text-primary-400 font-bold">${stats.total_detections || 0}</span>
+                        </div>
+                        ${classHtml}
+                    `;
+
+                if (stats.finished) {
+                    isProcessing = false;
+                    document.getElementById('statusIndicator').textContent = 'COMPLETE';
+                    clearInterval(statsInterval);
+                }
+            })
+            .catch(err => {
+                console.error('Stats polling error:', err);
+            });
+    }
+
+    function displayImageResults(data) {
+        resetDetectionState();
+        isProcessing = false;
+        document.getElementById('statusIndicator').textContent = 'COMPLETE';
+        document.getElementById('initialPlaceholder').style.display = 'none';
+        const img = document.getElementById('imageDisplay');
+        img.src = data.image;
+        img.style.display = 'block';
+        renderDetections(data.detections, data.summary);
+        hideStatus();
+    }
+
+    function renderDetections(arr, summary) {
+        const list = document.getElementById('detectionsList');
+        if (!arr.length) {
+            list.innerHTML = `
+                    <div class="text-center text-gray-500 py-12">
+                        <div class="text-4xl mb-3">❌</div>
+                        <p class="text-sm">No wildlife detected</p>
+                    </div>`;
+        } else {
+            list.innerHTML = arr.map((d, i) => `
+                    <div class="bg-black/60 p-4 rounded-lg border-l-4 ${i % 2 ? 'border-red-400' : 'border-primary-400'} hover:bg-black/80 transition-all duration-300">
+                        <div class="font-bold text-lg text-primary-300 uppercase">${d.animal}</div>
+                        <div class="text-sm text-gray-300 mt-1">CONF: ${(d.confidence * 100).toFixed(1)}%</div>
+                        <div class="text-xs text-gray-500 mt-1">POS: [${d.bbox.join(', ')}]</div>
+                    </div>`
+            ).join('');
+        }
+        if (summary) {
+            document.getElementById('summaryContent').textContent = summary;
+            document.getElementById('finalSummary').classList.remove('hidden');
+        }
+    }
+
+    function resetYoutubeButton() {
+        const processBtn = document.getElementById('youtubeProcessBtn');
+        processBtn.disabled = false;
+        processBtn.textContent = 'ANALYZE STREAM';
+        processBtn.classList.remove('opacity-50');
+    }
+</script>
 {% endblock %}

@@ -1,9 +1,11 @@
 <div id="detectionPreview" class="hidden  flex flex-col w-full h-full bg-black/60 backdrop-blur-md">
     <div class="flex items-center justify-between p-4 bg-black/60 border-b border-primary-500/30">
         <div class="flex items-center space-x-4">
-            <button id="backButton" class="flex items-center px-4 py-2 bg-red-600 hover:bg-red-500 text-white rounded-lg transition-all duration-300">
+            <button id="backButton"
+                class="flex items-center px-4 py-2 bg-red-600 hover:bg-red-500 text-white rounded-lg transition-all duration-300">
                 <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M10 19l-7-7m0 0l7-7m-7 7h18" />
                 </svg>
                 BACK
             </button>
@@ -20,7 +22,8 @@
     <div class="flex flex-1 overflow-hidden">
         <div id="mediaPlaceholder" class="w-2/3 flex items-center justify-center p-6 relative">
             <img id="imageDisplay" src="" alt="Result" class="max-w-full max-h-full rounded-xl shadow-lg hidden">
-            <img id="videoStream" class="max-w-full max-h-full rounded-xl shadow-lg hidden" alt="Video Stream" src="/video_feed">
+            <img id="videoStream" class="max-w-full max-h-full rounded-xl shadow-lg hidden" alt="Video Stream"
+                src="/video_feed">
             <div id="loadingOverlay" class="absolute inset-0 flex items-center justify-center hidden">
                 <div id="loadingText" class="text-white font-medium">Processing...</div>
             </div>
@@ -38,8 +41,12 @@
                     LIVE STATS
                 </h3>
                 <div id="classStats" class="space-y-2 text-sm font-mono text-gray-300">
-                    <div class="flex justify-between"><span>FRAMES:</span><span id="frameCount" class="text-primary-300">0</span></div>
-                    <div class="flex justify-between"><span>DETECTIONS:</span><span id="detectionCount" class="text-primary-400">0</span></div>
+                    <div class="flex justify-between"><span>FRAMES:</span>
+                        <span id="frameCount" class="text-primary-300">0</span>
+                    </div>
+                    <div class="flex justify-between"><span>DETECTIONS:</span>
+                        <span id="detectionCount" class="text-primary-400">0</span>
+                    </div>
                 </div>
             </div>
 
@@ -70,19 +77,31 @@
         document.getElementById('controlPanel').classList.add('hidden');
         document.getElementById('detectionPreview').classList.remove('hidden');
         resetPreviewState();
-        isProcessing = true;
-        statsInterval = setInterval(pollStats, 1000);
+        // FIX: Don't set isProcessing here - let individual processors handle it
     };
 
     document.getElementById('backButton').addEventListener('click', () => {
+        fetch('/stop_processing', { method: 'POST' })
+            .then(/* … */).catch(/* … */);
+
         clearInterval(statsInterval);
         isProcessing = false;
-        document.getElementById('detection')   .style.display = 'none';
-        document.getElementById('controlPanel').style.display = 'block';
+
+        resetPreviewState();
+        hideStatus();
+
+        // 5) Swap views
+        document.getElementById('detectionPreview').classList.add('hidden');
+        document.getElementById('controlPanel').classList.remove('hidden');
+
+        // 6) Notify other components
+        if (window.setVideoProcessing) window.setVideoProcessing(false);
+        if (window.setYoutubeProcessing) window.setYoutubeProcessing(false);
+        if (window.clearYoutubeUrl) window.clearYoutubeUrl();
     });
 
     function resetPreviewState() {
-        isProcessing = false;
+        // FIX: Don't reset isProcessing here - let it be managed by individual processors
         clearInterval(statsInterval);
         document.getElementById('statusIndicator').textContent = 'WAITING';
         document.getElementById('frameCount').textContent = '0';
@@ -97,9 +116,15 @@
       <p class="text-sm font-mono">No detections yet...</p>
     </div>`;
         document.getElementById('finalSummary').classList.add('hidden');
+
+        // Clear class stats
+        document.getElementById('classStats').innerHTML = `
+            <div class="flex justify-between"><span>FRAMES:</span><span id="frameCount" class="text-primary-300">0</span></div>
+            <div class="flex justify-between"><span>DETECTIONS:</span><span id="detectionCount" class="text-primary-400">0</span></div>
+        `;
     }
 
-    window.showStatus = (msg, err=false) => {
+    window.showStatus = (msg, err = false) => {
         document.getElementById('statusIndicator').textContent = err ? 'ERROR' : 'PROCESSING';
         document.getElementById('loadingText').textContent = msg;
         document.getElementById('loadingOverlay').style.display = 'flex';
@@ -108,38 +133,72 @@
 
     window.displayImageResults = data => {
         resetPreviewState();
+        isProcessing = false; // Images are processed immediately
         document.getElementById('statusIndicator').textContent = 'COMPLETE';
         document.getElementById('initialPlaceholder').style.display = 'none';
         const img = document.getElementById('imageDisplay');
-        img.src = data.image; img.style.display = 'block';
+        img.src = data.image;
+        img.style.display = 'block';
         renderDetections(data.detections, data.summary);
+        hideStatus();
     };
 
     window.startVideoStream = () => {
         resetPreviewState();
+        // FIX: Set processing state and start polling immediately
+        isProcessing = true;
         document.getElementById('statusIndicator').textContent = 'STREAMING';
         document.getElementById('initialPlaceholder').style.display = 'none';
         const img = document.getElementById('videoStream');
-        img.src = '/video_feed';
+        // Add timestamp to prevent caching issues
+        img.src = '/video_feed?' + new Date().getTime();
         img.style.display = 'block';
+
+        // FIX: Start polling immediately when video stream starts
+        if (statsInterval) clearInterval(statsInterval);
         statsInterval = setInterval(pollStats, 1000);
+        hideStatus();
     };
 
     function pollStats() {
-        if (!isProcessing) return clearInterval(statsInterval);
-        fetch('/get_stats').then(r=>r.json()).then(stats=>{
-            document.getElementById('frameCount').textContent = stats.frames_processed;
-            document.getElementById('detectionCount').textContent = stats.total_detections;
-            const html = Object.entries(stats.detections_by_class)
-                .map(([c,n])=>`<div class="flex justify-between text-gray-300 font-mono text-xs"><span>${c.toUpperCase()}:</span><span>${n}</span></div>`)
-                .join('');
-            document.getElementById('classStats').innerHTML = html;
-            if (stats.finished) {
-                isProcessing=false;
-                document.getElementById('statusIndicator').textContent = 'COMPLETE';
-                clearInterval(statsInterval);
-            }
-        }).catch(()=>{});
+        fetch('/get_stats')
+            .then(r => {
+                if (!r.ok) throw new Error(`HTTP ${r.status}`);
+                return r.json();
+            })
+            .then(stats => {
+                if (stats.finished) {
+                    isProcessing = false;
+                    document.getElementById('statusIndicator').textContent = 'COMPLETE';
+                    console.log("Processing finished:", stats);
+                    console.log(statsInterval)
+                    if (statsInterval) clearInterval(statsInterval);
+                    console.log(statsInterval)
+                    if (typeof window.setVideoProcessing === 'function') {
+                        window.setVideoProcessing(false);
+                    }
+                    return;
+                }
+                document.getElementById('frameCount').textContent = stats.frames_processed || 0;
+                document.getElementById('detectionCount').textContent = stats.total_detections || 0;
+                const classDetections = stats.detections_by_class || {};
+                const html = Object.entries(classDetections)
+                    .map(([className, count]) =>
+                        `<div class="flex justify-between text-gray-300 font-mono text-xs">
+                            <span>${className.toUpperCase()}:</span>
+                            <span>${count}</span>
+                        </div>`
+                    ).join('');
+                const classStatsContainer = document.getElementById('classStats');
+                classStatsContainer.innerHTML = `
+                    <div class="flex justify-between"><span>FRAMES:</span><span id="frameCount" class="text-primary-300">${stats.frames_processed || 0}</span></div>
+                    <div class="flex justify-between"><span>DETECTIONS:</span><span id="detectionCount" class="text-primary-400">${stats.total_detections || 0}</span></div>
+                    ${html}
+                `;
+            })
+            .catch(err => {
+                console.error('Stats polling error:', err);
+            });
     }
 
     function renderDetections(arr, summary) {
@@ -151,10 +210,10 @@
         <p class="text-sm font-mono">No wildlife detected</p>
       </div>`;
         } else {
-            list.innerHTML = arr.map((d,i) => `
-      <div class="bg-black/60 p-4 rounded-lg border-l-4 ${i%2?'border-red-400':'border-primary-400'}">
+            list.innerHTML = arr.map((d, i) => `
+      <div class="bg-black/60 p-4 rounded-lg border-l-4 ${i % 2 ? 'border-red-400' : 'border-primary-400'}">
         <div class="font-bold text-lg text-primary-300">${d.animal}</div>
-        <div class="text-sm text-gray-300 mt-1 font-mono">CONF: ${(d.confidence*100).toFixed(1)}%</div>
+        <div class="text-sm text-gray-300 mt-1 font-mono">CONF: ${(d.confidence * 100).toFixed(1)}%</div>
         <div class="text-xs text-gray-500 mt-1 font-mono">POS: [${d.bbox.join(', ')}]</div>
       </div>`).join('');
         }

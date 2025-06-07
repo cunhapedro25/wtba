@@ -17,21 +17,25 @@
     const imageInput = document.getElementById('imageInput');
 
     imageDropZone.addEventListener('click', () => imageInput.click());
+
     imageInput.addEventListener('change', function() {
         if (this.files.length && typeof window.showDetections === 'function') {
             window.showDetections();
             processImage(this.files[0]);
         }
     });
+
     main.addEventListener('dragover', e => {
         e.preventDefault(); e.stopPropagation();
         imageDropZone.classList.add('border','border-dashed','border-primary-400','bg-primary-500/20','backdrop-blur-md');
         imageDropZone.classList.remove('camera-frame');
     });
+
     imageDropZone.addEventListener('dragover', e => {
         e.preventDefault(); e.stopPropagation();
         imageDropZone.classList.add('scale-105');
     });
+
     main.addEventListener('dragleave', e => {
         e.preventDefault(); e.stopPropagation();
         if (!imageDropZone.contains(e.relatedTarget)) {
@@ -39,10 +43,12 @@
             imageDropZone.classList.add('camera-frame');
         }
     });
+
     imageDropZone.addEventListener('dragleave', e => {
         e.preventDefault(); e.stopPropagation();
         imageDropZone.classList.remove('scale-105');
     });
+
     imageDropZone.addEventListener('drop', e => {
         e.preventDefault(); e.stopPropagation();
         imageDropZone.classList.remove('border','border-dashed','border-primary-400','bg-primary-500/20','backdrop-blur-md');

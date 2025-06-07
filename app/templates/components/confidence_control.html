@@ -22,12 +22,10 @@
 <script>
     let currentConfidence = 0.5;
 
-    // Initialize confidence slider
     document.getElementById('confidenceSlider').addEventListener('input', function() {
         currentConfidence = parseFloat(this.value);
         document.getElementById('confidenceValue').textContent = currentConfidence.toFixed(2);
     });
 
-    // Export confidence value for other components
     window.getCurrentConfidence = () => currentConfidence;
 </script>

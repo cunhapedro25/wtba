@@ -75,42 +75,48 @@
     });
 
     function processVideo(file) {
+        // Use window.showStatus to access the global function
+        if (typeof window.showStatus === 'function') {
+            window.showStatus('Uploading video...');
+        }
+
+        // Update global processing state
+        if (typeof window.isProcessing !== 'undefined') {
+            window.isProcessing = true;
+        }
+        if (typeof window.isYoutube !== 'undefined') {
+            window.isYoutube = false;
+        }
+
+        const initialPlaceholder = document.getElementById('initialPlaceholder');
+        if (initialPlaceholder) {
+            initialPlaceholder.style.display = 'none';
+        }
+
         const formData = new FormData();
         formData.append('file', file);
 
-        let confidence = window.getCurrentConfidence();
-        if (typeof confidence !== 'number' || isNaN(confidence)) {
-            confidence = 0.5;
+        // Use window.getCurrentConfidence to access the global function
+        if (typeof window.getCurrentConfidence === 'function') {
+            formData.append('confidence', window.getCurrentConfidence());
         }
-        formData.append('confidence', confidence.toString());
-
-        if (typeof window.showStatus === 'function') {
-            window.showStatus('Preparing video stream...');
-        }
-        isVideoProcessing = true;
 
         fetch('/upload_video', {
             method: 'POST',
             body: formData
         })
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}`);
-                }
-                const ct = response.headers.get('Content-Type') || '';
-                if (!ct.includes('application/json')) {
-                    throw new Error('Expected JSON, got ' + ct);
-                }
-                return response.json();
-            })
+            .then(r => r.json())
             .then(data => {
                 if (data.error) {
                     if (typeof window.showStatus === 'function') {
                         window.showStatus('Error: ' + data.error, true);
                     }
-                    isVideoProcessing = false;
+                    if (typeof window.isProcessing !== 'undefined') {
+                        window.isProcessing = false;
+                    }
                     return;
                 }
+                // After upload, start streaming
                 if (typeof window.startVideoStream === 'function') {
                     window.startVideoStream();
                 }
@@ -119,10 +125,18 @@
                 if (typeof window.showStatus === 'function') {
                     window.showStatus('Error: ' + err.message, true);
                 }
-                isVideoProcessing = false;
+                if (typeof window.isProcessing !== 'undefined') {
+                    window.isProcessing = false;
+                }
             });
     }
 
     window.isVideoProcessing = () => isVideoProcessing;
-    window.setVideoProcessing = state => { isVideoProcessing = state; };
+    window.setVideoProcessing = state => {
+        isVideoProcessing = state;
+        // Sync with global processing state
+        if (typeof window.setProcessingState === 'function') {
+            window.setProcessingState(state);
+        }
+    };
 </script>
