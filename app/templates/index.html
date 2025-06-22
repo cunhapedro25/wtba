@@ -4,32 +4,39 @@
 <div class="container mx-auto px-6 py-8">
     <!-- Main Upload Interface -->
     <div id="options" class="max-w-4xl mx-auto">
-        {% include 'components/confidence_control.html' %}
-
         <!-- Upload Options -->
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
             {% include 'components/image_upload.html' %}
             {% include 'components/video_upload.html' %}
         </div>
 
-        <div class="camera-frame rounded-2xl p-6">
+        <div class="camera-frame rounded-2xl p-6 mb-6">
             <div class="flex items-center mb-6">
                 <span class="text-3xl mr-3">🌐</span>
-                <h3 class="text-xl  text-red-400">Youtube Link</h3>
+                <h3 class="text-xl text-primary-400  font-bold">Youtube Link</h3>
             </div>
             <div class="flex flex-col sm:flex-row gap-4">
                 <input type="text" id="youtubeUrl"
                     class="flex-1 px-4 py-3 bg-black/60 border border-red-500/30 rounded-lg text-primary-300 placeholder-gray-400 focus:border-red-400 focus:outline-none transition-colors font-mono"
                     placeholder="Enter YouTube URL for analysis...">
                 <button id="youtubeProcessBtn" onclick="processYoutube()"
-                    class="px-8 py-3 bg-gradient-to-r from-red-600 to-red-500 text-white font-bold rounded-lg hover:from-red-500 hover:to-red-400 transition-all duration-300 transform hover:scale-105  whitespace-nowrap">
+                    class="px-8 py-3 bg-gradient-to-r from-red-600 to-red-500 text-white font-bold rounded-lg hover:from-red-500 hover:to-red-400 transition-all duration-300 transform hover:scale-105 whitespace-nowrap">
                     ANALYZE STREAM
                 </button>
             </div>
         </div>
+
+        <!-- Settings Section Header -->
+        <div class="camera-frame w-fit p-2 rounded-xl flex items-center mb-6 mt-10">
+            <span class="text-3xl mr-3">⚙️</span>
+            <h2 class="text-2xl text-primary-400  font-bold">Settings</h2>
+        </div>
+
+        <!-- Settings Components -->
+        {% include 'components/confidence_control.html' %}
+        {% include 'components/llm_selector.html' %}
     </div>
 
-    <!-- Include Detection Preview Component -->
     {% include 'components/detection_preview.html' %}
 </div>
 {% endblock %}

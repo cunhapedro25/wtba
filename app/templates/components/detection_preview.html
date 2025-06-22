@@ -142,7 +142,47 @@
         min-height: 400px !important;
         padding: 1.5rem !important;
     }
+
+    /* Markdown content styling */
+    .markdown-content {
+        line-height: 1.6;
+    }
+
+    .markdown-content p {
+        margin-bottom: 1rem;
+    }
+
+    .markdown-content ul, .markdown-content ol {
+        margin-bottom: 1rem;
+        padding-left: 1.5rem;
+    }
+
+    .markdown-content li {
+        margin-bottom: 0.5rem;
+    }
+
+    .markdown-content strong {
+        font-weight: bold;
+        color: #f3f4f6;
+    }
+
+    .markdown-content em {
+        font-style: italic;
+    }
+
+    .markdown-content h1, .markdown-content h2, .markdown-content h3 {
+        color: #10b981;
+        font-weight: bold;
+        margin-bottom: 0.75rem;
+        margin-top: 1.5rem;
+    }
+
+    .markdown-content h1 { font-size: 1.25rem; }
+    .markdown-content h2 { font-size: 1.125rem; }
+    .markdown-content h3 { font-size: 1rem; }
 </style>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/marked/5.1.1/marked.min.js"></script>
 
 <script>
     let isProcessing = false;
@@ -415,7 +455,9 @@
         renderDetections(data.detections, data.summary);
 
         if (data.llm_analysis && data.llm_analysis.trim() !== '') {
-            document.getElementById('llmContent').textContent = data.llm_analysis;
+            const htmlContent = marked.parse(data.llm_analysis);
+            document.getElementById('llmContent').innerHTML = htmlContent;
+            document.getElementById('llmContent').classList.add('markdown-content');
             document.getElementById('llmAnalysis').classList.remove('hidden');
         }
 

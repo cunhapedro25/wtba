@@ -112,3 +112,58 @@ def stop_processing():
         return jsonify({'status': 'stopped'})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+
+
+@main.route('/llm/status')
+def llm_status():
+    """Get LLM connection status and available models"""
+    return jsonify(llm_analyzer.get_connection_status())
+
+@main.route('/llm/set_model', methods=['POST'])
+def set_llm_model():
+    """Set the current LLM model"""
+    data = request.get_json()
+    model_name = data.get('model_name', '')
+
+    if not model_name:
+        return jsonify({'success': False, 'message': 'No model name provided'})
+
+    result = llm_analyzer.set_model(model_name)
+    return jsonify(result)
+
+@main.route('/llm/install_model', methods=['POST'])
+def install_llm_model():
+    """Install a new LLM model"""
+    data = request.get_json()
+    model_name = data.get('model_name', '')
+
+    if not model_name:
+        return jsonify({'success': False, 'message': 'No model name provided'})
+
+    result = llm_analyzer.install_model(model_name)
+    return jsonify(result)
+
+@main.route('/llm/installation_status/<model_name>')
+def get_installation_status(model_name):
+    """Get installation status for a specific model"""
+    status = llm_analyzer.get_installation_status(model_name)
+    return jsonify(status)
+
+@main.route('/llm/remove_model', methods=['POST'])
+def remove_llm_model():
+    """Remove an installed LLM model"""
+    data = request.get_json()
+    model_name = data.get('model_name', '')
+
+    if not model_name:
+        return jsonify({'success': False, 'message': 'No model name provided'})
+
+    result = llm_analyzer.remove_model(model_name)
+    return jsonify(result)
+
+@main.route('/llm/refresh', methods=['POST'])
+def refresh_llm_connection():
+    """Refresh LLM connection and model list"""
+    llm_analyzer._test_connection()
+    return jsonify(llm_analyzer.get_connection_status())

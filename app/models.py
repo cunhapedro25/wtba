@@ -1,10 +1,12 @@
 """
 Model management and YOLO integration
 """
-
-
+import threading
 import requests
 import base64
+import subprocess
+import platform
+import time
 from pathlib import Path
 from ultralytics import YOLO
 import io
@@ -54,28 +56,270 @@ class DetectionModel:
 
 
 class LLMAnalyzer:
-    def __init__(self, ollama_url="http://localhost:11434", model_name="llava:7b"):
+    def __init__(self, ollama_url="http://localhost:11434", model_name=None):
         self.ollama_url = ollama_url
         self.model_name = model_name
+        self.available_models = []
+        self.installed_models = []
+        self.is_connected = False
+        self.installation_status = {}
+        self._popular_models = [
+            # Vision models
+            {"name": "llava:7b", "description": "7B vision model - Good balance of speed and quality", "size": "4.7GB", "type": "vision"},
+            {"name": "llava:13b", "description": "13B vision model - Higher quality, slower", "size": "8.0GB", "type": "vision"},
+            {"name": "llava:34b", "description": "34B vision model - Best quality, requires powerful hardware", "size": "20GB", "type": "vision"},
+            {"name": "bakllava", "description": "BakLLaVA - Alternative vision model", "size": "4.4GB", "type": "vision"},
+            {"name": "moondream", "description": "Moondream - Lightweight vision model", "size": "1.7GB", "type": "vision"},
+            {"name": "llava-phi3", "description": "LLaVA Phi3 - Microsoft's efficient vision model", "size": "2.9GB", "type": "vision"},
+            {"name": "gemma:2b", "description": "Gemma 2B - Ultra-lightweight model by Google", "size": "1.4GB", "type": "vision"},
+            {"name": "gemma:7b", "description": "Gemma 7B - Efficient model with good performance", "size": "4.8GB", "type": "vision"}
+        ]
+        # Try to start Ollama if installed but not running
+        if not self._check_ollama_running():
+            self._try_start_ollama()
+
+        # Test connection after possibly starting Ollama
         self._test_connection()
 
+    def _check_ollama_running(self):
+        """Check if Ollama is already running by trying to connect"""
+        try:
+            response = requests.get(f"{self.ollama_url}/api/tags", timeout=2)
+            return response.status_code == 200
+        except:
+            return False
+
+    def _try_start_ollama(self):
+        """Attempt to start Ollama using the ollama serve command"""
+        print("Trying to start Ollama...")
+
+        try:
+            # First, check if ollama command is available
+            result = subprocess.run(
+                ["ollama", "--version"],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                timeout=5
+            )
+
+            if result.returncode != 0:
+                print("Ollama command not found or not working")
+                return
+
+            print(f"Found Ollama: {result.stdout.strip()}")
+
+            # Start Ollama serve in the background
+            print("Starting Ollama serve...")
+
+            # Platform-specific process creation
+            system = platform.system()
+
+            if system == "Windows":
+                # On Windows, use CREATE_NO_WINDOW to prevent console window
+                subprocess.Popen(
+                    ["ollama", "serve"],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                    creationflags=subprocess.CREATE_NO_WINDOW
+                )
+            else:
+                # On macOS and Linux
+                subprocess.Popen(
+                    ["ollama", "serve"],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL
+                )
+
+            print("Ollama serve started in background")
+
+            # Wait a bit for Ollama to start up
+            print("Waiting for Ollama to start...")
+            for i in range(10):  # Wait up to 10 seconds
+                time.sleep(1)
+                if self._check_ollama_running():
+                    print(f"Ollama is now running after {i+1} seconds")
+                    return
+
+            print("Ollama may still be starting up...")
+
+        except subprocess.TimeoutExpired:
+            print("Timeout checking for Ollama command")
+        except FileNotFoundError:
+            print("Ollama command not found. Please install Ollama from https://ollama.com")
+        except Exception as e:
+            print(f"Error trying to start Ollama: {e}")
+            print("You may need to start Ollama manually by running 'ollama serve' in a terminal")
     def _test_connection(self):
-        """Test connection to Ollama"""
+        """Test connection to Ollama and get available models"""
         try:
             response = requests.get(f"{self.ollama_url}/api/tags", timeout=5)
             if response.status_code == 200:
-                models = response.json().get('models', [])
-                available_models = [m['name'] for m in models]
-                print(f"Connected to Ollama. Available models: {available_models}")
+                self.is_connected = True
+                models_data = response.json().get('models', [])
 
-                if not any(self.model_name in model for model in available_models):
-                    print(f"Warning: {self.model_name} not found. Using first available model.")
-                    if available_models:
-                        self.model_name = available_models[0]
+                # Helper function to determine if a model is a vision model
+                def is_vision_model(model_name):
+                    vision_keywords = ['llava', 'bakllava', 'moondream', 'llava-phi3', 'gemma']
+                    return any(keyword in model_name.lower() for keyword in vision_keywords)
+
+                self.installed_models = [
+                    {
+                        'name': m['name'],
+                        'size': m.get('size', 0),
+                        'modified_at': m.get('modified_at', ''),
+                        'details': m.get('details', {}),
+                        'type': 'vision' if is_vision_model(m['name']) else 'text'  # Add this line
+                    }
+                    for m in models_data
+                ]
+
+                # Auto-select first available vision model if none specified
+                if not self.model_name:
+                    vision_models = [m['name'] for m in self.installed_models
+                                     if m['type'] == 'vision']  # Use the type field instead
+                    if vision_models:
+                        self.model_name = vision_models[0]
+                        print(f"Auto-selected model: {self.model_name}")
+                    else:
+                        print("No vision models found. Please install a vision model.")
+
+                print(f"Connected to Ollama. Installed models: {[m['name'] for m in self.installed_models]}")
+
             else:
+                self.is_connected = False
                 print(f"Ollama connection failed: {response.status_code}")
         except Exception as e:
+            self.is_connected = False
             print(f"Ollama connection error: {e}")
+
+    def get_connection_status(self):
+        """Get current connection status and model info"""
+        return {
+            'connected': self.is_connected,
+            'current_model': self.model_name,
+            'installed_models': self.installed_models,
+            'popular_models': self._popular_models,
+            'installation_status': self.installation_status
+        }
+
+    def set_model(self, model_name):
+        """Set the current model"""
+        # Check if model is installed
+        installed_model_names = [m['name'] for m in self.installed_models]
+        if model_name in installed_model_names:
+            self.model_name = model_name
+            return {'success': True, 'message': f'Model set to {model_name}'}
+        else:
+            return {'success': False, 'message': f'Model {model_name} is not installed'}
+
+    def install_model(self, model_name):
+        """Install a model asynchronously"""
+        if not self.is_connected:
+            return {'success': False, 'message': 'Not connected to Ollama'}
+
+        if model_name in [m['name'] for m in self.installed_models]:
+            return {'success': False, 'message': 'Model already installed'}
+
+        # Start installation in background thread
+        def _install():
+            try:
+                self.installation_status[model_name] = {
+                    'status': 'downloading',
+                    'progress': 0,
+                    'message': 'Starting download...'
+                }
+
+                # Use Ollama API to pull model
+                response = requests.post(
+                    f"{self.ollama_url}/api/pull",
+                    json={'name': model_name},
+                    stream=True,
+                    timeout=3600  # 1 hour timeout for large models
+                )
+
+                if response.status_code == 200:
+                    for line in response.iter_lines():
+                        if line:
+                            try:
+                                import json
+                                data = json.loads(line.decode('utf-8'))
+                                status = data.get('status', '')
+
+                                if 'pulling' in status.lower():
+                                    self.installation_status[model_name] = {
+                                        'status': 'downloading',
+                                        'progress': 50,  # Rough estimate
+                                        'message': status
+                                    }
+                                elif 'verifying' in status.lower():
+                                    self.installation_status[model_name] = {
+                                        'status': 'verifying',
+                                        'progress': 90,
+                                        'message': status
+                                    }
+                                elif 'success' in status.lower() or data.get('status') == 'success':
+                                    self.installation_status[model_name] = {
+                                        'status': 'completed',
+                                        'progress': 100,
+                                        'message': 'Installation completed'
+                                    }
+                                    # Refresh installed models list
+                                    self._test_connection()
+                                    break
+                            except json.JSONDecodeError:
+                                continue
+
+                    # Final success check
+                    if model_name not in self.installation_status or \
+                            self.installation_status[model_name]['status'] != 'completed':
+                        self.installation_status[model_name] = {
+                            'status': 'completed',
+                            'progress': 100,
+                            'message': 'Installation completed'
+                        }
+                        self._test_connection()
+                else:
+                    self.installation_status[model_name] = {
+                        'status': 'error',
+                        'progress': 0,
+                        'message': f'Installation failed: {response.status_code}'
+                    }
+
+            except Exception as e:
+                self.installation_status[model_name] = {
+                    'status': 'error',
+                    'progress': 0,
+                    'message': f'Installation failed: {str(e)}'
+                }
+
+        thread = threading.Thread(target=_install, daemon=True)
+        thread.start()
+
+        return {'success': True, 'message': f'Installation of {model_name} started'}
+
+    def get_installation_status(self, model_name):
+        """Get installation status for a specific model"""
+        return self.installation_status.get(model_name, {'status': 'not_started'})
+
+    def remove_model(self, model_name):
+        """Remove an installed model"""
+        if not self.is_connected:
+            return {'success': False, 'message': 'Not connected to Ollama'}
+
+        try:
+            response = requests.delete(f"{self.ollama_url}/api/delete", json={'name': model_name})
+            if response.status_code == 200:
+                # Refresh installed models list
+                self._test_connection()
+                # Clear current model if it was removed
+                if self.model_name == model_name:
+                    self.model_name = None
+                return {'success': True, 'message': f'Model {model_name} removed'}
+            else:
+                return {'success': False, 'message': f'Failed to remove model: {response.status_code}'}
+        except Exception as e:
+            return {'success': False, 'message': f'Error removing model: {str(e)}'}
 
     def _image_to_base64(self, image_path):
         """Convert image to base64 string"""
@@ -88,6 +332,12 @@ class LLMAnalyzer:
 
     def analyze_image(self, image_path, detections=None):
         """Analyze image with LLM"""
+        if not self.is_connected:
+            return "LLM service not available - please check Ollama connection."
+
+        if not self.model_name:
+            return "No LLM model selected - please select a vision model."
+
         try:
             image_b64 = self._image_to_base64(image_path)
             if not image_b64:
@@ -134,6 +384,9 @@ Provide a natural, engaging description as if you're a wildlife expert explainin
 
     def analyze_frame(self, frame_image, detections=None):
         """Analyze a single frame (for video processing)"""
+        if not self.is_connected or not self.model_name:
+            return "LLM analysis unavailable."
+
         try:
             if hasattr(frame_image, 'shape'):
                 from PIL import Image
