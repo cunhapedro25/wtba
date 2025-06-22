@@ -1,13 +1,14 @@
 from flask import Blueprint, render_template, request, jsonify, Response
 from werkzeug.utils import secure_filename
 from pathlib import Path
-from app.models import DetectionModel
+from app.models import DetectionModel, LLMAnalyzer
 from app.utils import DetectionProcessor
 
 main = Blueprint('main', __name__)
 
 detection_model = DetectionModel()
-processor = DetectionProcessor(detection_model)
+llm_analyzer = LLMAnalyzer()
+processor = DetectionProcessor(detection_model, llm_analyzer)
 detection_model.load_model()
 
 @main.route('/')

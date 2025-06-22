@@ -18,6 +18,7 @@ wtba/
 │   │   ├── components
 │   │   │   ├── background.html
 │   │   │   ├── confidence_control.html
+│   │   │   ├── detection_preview.html
 │   │   │   ├── footer.html
 │   │   │   ├── header.html
 │   │   │   ├── image_upload.html
@@ -39,6 +40,7 @@ wtba/
 ### 1. Prerequisites
 - Python 3.8 or higher
 - pip package manager
+- Ollama LLM service (optional, for AI analysis)
 
 ### 2. Installation
 
@@ -69,6 +71,11 @@ Run the notebook `train-model.ipynb` to create the dataset and train the YOLO mo
 5. **Add your YOLO model:**
    - Place your trained model file `best.pt` in the `models/` directory
 
+6. **LLM Setup (Optional):**
+   - Install Ollama from [ollama.ai](https://ollama.ai)
+   - Pull the LLaVA model with `ollama pull llava:7b`
+   - Ensure Ollama is running on port 11434 (default)
+
 ### 3. Running the Application
 
 ```bash
@@ -83,6 +90,7 @@ The application will be available at `http://127.0.0.1:8080`
 2. **Video Detection:** Upload a video file for frame-by-frame analysis
 3. **YouTube Processing:** Enter a YouTube URL to download and process
 4. **Confidence Threshold:** Adjust the detection sensitivity (0.1 - 1.0)
+5. **AI Analysis:** View AI-generated descriptions of wildlife scenes (requires Ollama)
 
 ## Features
 
@@ -92,6 +100,8 @@ The application will be available at `http://127.0.0.1:8080`
 - Configurable confidence thresholds
 - Responsive web interface with Tailwind CSS
 - Support for multiple animal classes: hog, deer, rabbit, and pigeon
+- AI-powered scene analysis with LLaVA vision-language model
+- Modular component architecture for easy customization
 
 ## API Endpoints
 
@@ -102,6 +112,16 @@ The application will be available at `http://127.0.0.1:8080`
 - `GET /get_results` - Poll processing results
 - `GET /video_feed` - Stream video feed for real-time detection
 - `GET /get_stats` - Get statistics of processed videos
+- `POST /stop_processing` - Terminate any ongoing processing
+
+## Components
+
+The application follows a modular component structure:
+- `confidence_control.html` - Sensitivity adjustment slider
+- `detection_preview.html` - Main detection display component
+- `image_upload.html` - Image upload interface
+- `video_upload.html` - Video upload interface
+- And more UI components
 
 ## Dependencies
 
@@ -114,3 +134,4 @@ See `requirements.txt` for complete list of dependencies including:
 - Pillow for image handling
 - Werkzeug for file handling
 - python-dotenv for environment variable management
+- Requests for LLM API communication

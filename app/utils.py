@@ -6,15 +6,17 @@ from pathlib import Path
 import time
 
 class DetectionProcessor:
-    def __init__(self, detection_model):
+    def __init__(self, detection_model, llm_analyzer):
         self.model = detection_model
+        self.llm_analyzer = llm_analyzer
         self.current_results = {}
         self.is_processing = False
         self.is_streaming = False
         self.current_stats = {
             'frames_processed': 0,
             'detections_by_class': {},
-            'total_detections': 0
+            'total_detections': 0,
+            'llm_analyses': []
         }
         self.current_video_path = None
         self.conf_threshold = 0.5
@@ -22,6 +24,7 @@ class DetectionProcessor:
         self._stats_lock = threading.Lock()
         self._processing_lock = threading.Lock()
         self._stop_event = threading.Event()
+        self._frame_analysis_cache = {}
 
     def process_image(self, image_path, conf_threshold=0.5):
         if not self.model.is_loaded():
@@ -62,11 +65,20 @@ class DetectionProcessor:
         with open(saved_path, "rb") as f:
             img_b64 = base64.b64encode(f.read()).decode("utf-8")
 
+        llm_analysis = ""
+        if self.llm_analyzer:
+            try:
+                llm_analysis = self.llm_analyzer.analyze_image(str(saved_path), detections)
+            except Exception as e:
+                print(f"LLM analysis failed: {e}")
+                llm_analysis = "LLM analysis unavailable."
+
         summary = self.generate_summary(detections, saved_name)
         return {
             'image': f"data:image/jpeg;base64,{img_b64}",
             'detections': detections,
-            'summary': summary
+            'summary': summary,
+            'llm_analysis': llm_analysis
         }
 
     def process_video(self, video_path, conf_threshold=0.5):
